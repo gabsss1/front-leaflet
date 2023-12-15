@@ -1,110 +1,98 @@
-  import React, { useState } from 'react';
-  import L from 'leaflet';
-  import { MapContainer, TileLayer, FeatureGroup } from 'react-leaflet';
-  import { EditControl } from 'react-leaflet-draw';
-  import 'leaflet/dist/leaflet.css';
-  import 'leaflet-draw/dist/leaflet.draw.css';
-  import { createZona } from '../service/zonaService';
-  import Swal from 'sweetalert2';
+import React, { useEffect, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import '@geoman-io/leaflet-geoman-free';
+import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+import { createZona } from '../service/zonaService';
+import Swal from 'sweetalert2';
 
-  // Marker Icon fix
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png',
-    iconUrl:
-      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png',
-    shadowUrl:
-      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
-  });
+const MapView = () => {
+  const [geoJsonArray, setGeoJsonArray] = useState([]);
 
-  const MapView = () => {
-    const ZOOM_LEVEL = 5;
-    const LATITUDE = -8.60057858288449;
-    const LONGITUDE = -74.96387566349499;
 
-    const [pendingGeometries, setPendingGeometries] = useState([]);
+  //Mapa
+  useEffect(() => {
+    const map = L.map('map').setView([-34.603722, -58.381592], 13);
 
-    const _created = (e) => {
-      const { layer } = e;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: false,
+    }).addTo(map);
+
+    map.pm.addControls({
+      position: 'topleft',
+    });
+
+    map.on('pm:create', (e) => {
+      const layer = e.layer;
       const geoJSON = layer.toGeoJSON();
-      const { type, coordinates } = geoJSON.geometry;
 
-      console.log('Created Geometry:', geoJSON);
+      setGeoJsonArray((prevArray) => [...prevArray, geoJSON]);
+    });
 
-      setPendingGeometries((prevGeometries) => [
-        ...prevGeometries,
-        { type, coordinates },
-      ]);
+    return () => {
+      map.remove();
     };
+  }, []);
 
-    const saveGeometries = async () => {
-      const name = await askForName();
+  //Create Zona
+  const handleCreateZona = async () => {
 
-      try {
-        const createdZona = await createZona({
-          name,
-          features: pendingGeometries.map((geometry) => ({ geometry })),
-        });
+    const name = await askForName();
 
-        Swal.fire({
-          title: '¡Buen trabajo!',
-          text: 'Geometría creada',
-          icon: 'success',
-        });
-        setPendingGeometries([]);
-      } catch (error) {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error al crear la geometría',
-          text: '¡Algo salió mal!',
-        });
+    try {
+      if (geoJsonArray.length === 0) {
+        throw new Error('No se han dibujado geometrías');
       }
-    };
 
-    const askForName = async () => {
-      const { value: name } = await Swal.fire({
-        title: 'Ingrese el nombre de la geometría:',
-        input: 'text',
-        inputLabel: 'Nombre',
-        showCancelButton: true,
-        inputValidator: (value) => {
-          if (!value) {
-            return 'Debe ingresar un nombre';
-          }
-        },
+      const createdZona = await createZona({
+        name,
+        features: geoJsonArray,
       });
 
-      return name || 'Geometria sin nombre';
-    };
+      console.log('Zona creada:', createdZona);
 
-    return (
-      <div style={{ position: 'relative', height: '100vh' }}>
-        <MapContainer center={[LATITUDE, LONGITUDE]} zoom={ZOOM_LEVEL}>
-          <TileLayer
-            url='https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          />
+      Swal.fire({
+        icon: 'success',
+        title: 'Zona creada',
+        text: 'La zona se ha creado exitosamente',
+      });
 
-          <FeatureGroup>
-            <EditControl position='topright' onCreated={_created} />
-          </FeatureGroup>
-        </MapContainer>
+      setGeoJsonArray([]);
+    } catch (error) {
+      console.error('Error al crear la zona', error);
 
-        <button
-          className="btn primary"
-          style={{
-            position: 'absolute',
-            top: '100px',
-            right: '1440px',
-            zIndex: 1000,
-          }}
-          onClick={saveGeometries}
-        >
-          Save
-        </button>
-      </div>
-    );
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: error.message || 'Hubo un error al crear la zona',
+      });
+    }
   };
 
-  export default MapView;
+  const askForName = async () => {
+    const { value: name } = await Swal.fire({
+      title: 'Ingrese el nombre de la geometría:',
+      input: 'text',
+      inputLabel: 'Nombre',
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Debe ingresar un nombre';
+        }
+      },
+    });
+
+    return name || 'Geometria sin nombre';
+  };
+
+  //Render
+  return (
+    <div>
+      <div id="map" style={{ height: '90vh', width: '100vw' }} />
+      <button onClick={handleCreateZona}>Crear Zona</button>
+    </div>
+  );
+};
+
+export default MapView;
+

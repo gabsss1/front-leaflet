@@ -27,9 +27,11 @@ export const createZona = async (zonaData) => {
     const response = await axios.post(`${BASE_URL}/zona`, zonaData);
     return response.data;
   } catch (error) {
-    throw new Error('Error creating zona');
+    console.error('Error creating zona', error.response.data); // Imprime detalles del error
+    throw error;
   }
 };
+
 
 export const updateZona = async (id, zonaData) => {
   try {
