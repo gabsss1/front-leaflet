@@ -223,6 +223,8 @@ const MapView = () => {
     }
   };
 
+  
+
   //Render
   return (
     <Grid container spacing={2} style={{ height: '100vh' }}>
