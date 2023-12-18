@@ -3,8 +3,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { createZona, getAllZonas, getZonaById, updateZona} from '../service/zonaService';
+import { createZona, getAllZonas, deleteZona} from '../service/zonaService';
 import Swal from 'sweetalert2';
+import { Button, Grid, Stack } from '@mui/material';
 
   // Marker Icon fix
   delete L.Icon.Default.prototype._getIconUrl;
@@ -98,6 +99,7 @@ const MapView = () => {
     return name || 'Geometria sin nombre';
   };
 
+  //Get All Zonas
   const handleGetAllZonas = async () => {
     try {
       const geometries = await getAllZonas();
@@ -139,6 +141,7 @@ const MapView = () => {
     }
   };
 
+  //Get Zona by ID
   const handleGetZonaById = async () => {
     try {
       const zonas = await getAllZonas();
@@ -175,16 +178,77 @@ const MapView = () => {
     }
   };
 
+  //Delete Zona
+  const handleDeleteZona = async () => {
+    try {
+      const zonas = await getAllZonas();
+    
+      const { value: zonaName } = await Swal.fire({
+        title: 'Seleccione una Zona para eliminar',
+        input: 'select',
+        inputOptions: {
+          ...zonas.reduce((options, zona) => {
+            options[zona.name] = zona.name;
+            return options;
+          }, {}),
+        },
+        inputPlaceholder: 'Selecciona una Zona',
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) {
+            return 'Debes seleccionar una Zona';
+          }
+        },
+      });
+  
+      if (zonaName) {
+        const selectedZona = zonas.find((zona) => zona.name === zonaName);
+        await deleteZona(selectedZona.id);
+        handleGetAllZonas();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Zona Eliminada',
+        text: 'La zona se ha eliminado exitosamente',
+      });
+
+      }
+    } catch (error) {
+      console.error('Error al eliminar la zona', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un error al eliminar la zona',
+      });
+    }
+  };
 
   //Render
   return (
-    <div>
-      <div id="map" style={{ height: '90vh', width: '100vw' }} />
-      <button onClick={handleCreateZona}>Crear Zona</button>
-      <button onClick={handleGetAllZonas}>Obtener Todas las Zonas</button>
-      <button onClick={handleGetZonaById}>Obtener Zona por ID</button>
-      {/* <button onClick={handleUpdateZona}>Actualizar Zona por ID</button> */}
-    </div>
+    <Grid container spacing={2} style={{ height: '100vh' }}>
+    <Grid item xs={12} textAlign="center" justifyContent="center" display="flex">
+      <Stack spacing={2} direction="row">
+        <Button variant="contained" onClick={handleCreateZona}>
+          Crear Zona
+        </Button>
+        <Button variant="contained" onClick={handleGetAllZonas}>
+          Obtener Todas las Zonas
+        </Button>
+        <Button variant="contained" onClick={handleGetZonaById}>
+          Obtener Zona por ID
+        </Button>
+        <Button variant="contained">
+          Actualizar Zona
+        </Button>
+        <Button variant="contained" onClick={handleDeleteZona}>
+          Eliminar Zona
+        </Button>
+      </Stack>
+    </Grid>
+    <Grid item xs={12}>
+      <div id="map" style={{ height: '100vh', width: '100%' }} />
+    </Grid>
+  </Grid>
   );
 };
 
