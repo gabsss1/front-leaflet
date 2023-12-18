@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { createZona, getAllZonas } from '../service/zonaService';
+import { createZona, getAllZonas, getZonaById, updateZona} from '../service/zonaService';
 import Swal from 'sweetalert2';
 
   // Marker Icon fix
@@ -24,7 +24,7 @@ const MapView = () => {
 
   //Mapa
   useEffect(() => {
-    const newMap = L.map('map').setView([-34.603722, -58.381592], 13);
+    const newMap = L.map('map').setView([-34.603722, -58.381592], 5);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: false,
@@ -139,12 +139,51 @@ const MapView = () => {
     }
   };
 
+  const handleGetZonaById = async () => {
+    try {
+      const zonas = await getAllZonas();
+  
+      const { value: zonaName } = await Swal.fire({
+        title: 'Seleccione una Zona',
+        input: 'select',
+        inputOptions: {
+          ...zonas.reduce((options, zona) => {
+            options[zona.name] = zona.name;
+            return options;
+          }, {}),
+        },
+        inputPlaceholder: 'Selecciona una Zona',
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) {
+            return 'Debes seleccionar una Zona';
+          }
+        },
+      });
+  
+      if (zonaName) {
+        const selectedZona = zonas.find((zona) => zona.name === zonaName);
+        addGeometriesToMap([selectedZona]);
+      }
+    } catch (error) {
+      console.error('Error al obtener la zona por ID', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un error al obtener la zona por ID',
+      });
+    }
+  };
+
+
   //Render
   return (
     <div>
       <div id="map" style={{ height: '90vh', width: '100vw' }} />
       <button onClick={handleCreateZona}>Crear Zona</button>
       <button onClick={handleGetAllZonas}>Obtener Todas las Zonas</button>
+      <button onClick={handleGetZonaById}>Obtener Zona por ID</button>
+      {/* <button onClick={handleUpdateZona}>Actualizar Zona por ID</button> */}
     </div>
   );
 };
