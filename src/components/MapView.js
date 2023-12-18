@@ -3,40 +3,53 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { createZona } from '../service/zonaService';
+import { createZona, getAllZonas } from '../service/zonaService';
 import Swal from 'sweetalert2';
+
+  // Marker Icon fix
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl:
+      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png',
+    iconUrl:
+      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-icon.png',
+    shadowUrl:
+      'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
+  });
+
 
 const MapView = () => {
   const [geoJsonArray, setGeoJsonArray] = useState([]);
-
+  const [map, setMap] = useState(null);
 
   //Mapa
   useEffect(() => {
-    const map = L.map('map').setView([-34.603722, -58.381592], 13);
+    const newMap = L.map('map').setView([-34.603722, -58.381592], 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: false,
-    }).addTo(map);
+    }).addTo(newMap);
 
-    map.pm.addControls({
+    newMap.pm.addControls({
       position: 'topleft',
     });
 
-    map.on('pm:create', (e) => {
+    newMap.on('pm:create', (e) => {
       const layer = e.layer;
       const geoJSON = layer.toGeoJSON();
 
       setGeoJsonArray((prevArray) => [...prevArray, geoJSON]);
     });
 
+    setMap(newMap);
+
     return () => {
-      map.remove();
+      newMap.remove();
     };
-  }, []);
+  }, []); 
 
   //Create Zona
   const handleCreateZona = async () => {
-
     const name = await askForName();
 
     try {
@@ -85,14 +98,55 @@ const MapView = () => {
     return name || 'Geometria sin nombre';
   };
 
+  const handleGetAllZonas = async () => {
+    try {
+      const geometries = await getAllZonas();
+      setGeoJsonArray(geometries);
+  
+      if (map) {
+        addGeometriesToMap(geometries);
+      }
+    } catch (error) {
+      console.error('Error al obtener todas las zonas', error);
+    }
+  };
+  
+  const addGeometriesToMap = (geometries) => {
+    geometries.forEach((zona) => {
+      addToMap(zona);
+    });
+  };
+  
+  const addToMap = (zona) => {
+    const geometry = zona.geometry;
+  
+    if (geometry && geometry.type) {
+      switch (geometry.type) {
+        case 'Polygon':
+        case 'LineString':
+          L.geoJSON(geometry).addTo(map);
+          break;
+        case 'GeometryCollection':
+          geometry.geometries.forEach((subGeometry) => {
+            L.geoJSON(subGeometry).addTo(map);
+          });
+          break;
+        default:
+          console.warn('Tipo de geometría no manejado:', geometry.type);
+      }
+    } else {
+      console.warn('Geometría no válida:', zona);
+    }
+  };
+
   //Render
   return (
     <div>
       <div id="map" style={{ height: '90vh', width: '100vw' }} />
       <button onClick={handleCreateZona}>Crear Zona</button>
+      <button onClick={handleGetAllZonas}>Obtener Todas las Zonas</button>
     </div>
   );
 };
 
 export default MapView;
-
