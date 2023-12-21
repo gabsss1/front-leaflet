@@ -38,7 +38,8 @@ export const updateZona = async (id, zonaData) => {
     const response = await axios.put(`${BASE_URL}/zona/${id}`, zonaData);
     return response.data;
   } catch (error) {
-    throw new Error('Error updating zona');
+    console.error('Error updating zona:', error); // Agrega esta línea
+    throw new Error('Error updating zona', error.response.data);
   }
 };
 

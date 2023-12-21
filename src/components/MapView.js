@@ -3,7 +3,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { createZona, getAllZonas, deleteZona} from '../service/zonaService';
+import { createZona, getAllZonas, deleteZona, updateZona} from '../service/zonaService';
 import Swal from 'sweetalert2';
 import { Button, Grid, Stack } from '@mui/material';
 
@@ -22,6 +22,7 @@ import { Button, Grid, Stack } from '@mui/material';
 const MapView = () => {
   const [geoJsonArray, setGeoJsonArray] = useState([]);
   const [map, setMap] = useState(null);
+  const [selectedZona, setSelectedZona] = useState(null);
 
   //Mapa
   useEffect(() => {
@@ -38,8 +39,9 @@ const MapView = () => {
     newMap.on('pm:create', (e) => {
       const layer = e.layer;
       const geoJSON = layer.toGeoJSON();
-
+    
       setGeoJsonArray((prevArray) => [...prevArray, geoJSON]);
+      layer.addTo(newMap); // Agrega la geometría al mapa
     });
 
     setMap(newMap);
@@ -145,7 +147,7 @@ const MapView = () => {
   const handleGetZonaById = async () => {
     try {
       const zonas = await getAllZonas();
-  
+
       const { value: zonaName } = await Swal.fire({
         title: 'Seleccione una Zona',
         input: 'select',
@@ -163,9 +165,17 @@ const MapView = () => {
           }
         },
       });
-  
+
       if (zonaName) {
         const selectedZona = zonas.find((zona) => zona.name === zonaName);
+
+        console.log('Zona seleccionada:', selectedZona);
+
+        if (!selectedZona || !selectedZona.id) {
+          console.error('Zona no encontrada o sin ID');
+          return;
+        }
+
         addGeometriesToMap([selectedZona]);
       }
     } catch (error) {
@@ -177,6 +187,90 @@ const MapView = () => {
       });
     }
   };
+
+  const handleUpdateZona = async () => {
+    try {
+      const zonas = await getAllZonas();
+
+      const { value: zonaName } = await Swal.fire({
+        title: 'Seleccione una Zona para actualizar',
+        input: 'select',
+        inputOptions: {
+          ...zonas.reduce((options, zona) => {
+            options[zona.name] = zona.name;
+            return options;
+          }, {}),
+        },
+        inputPlaceholder: 'Selecciona una Zona',
+        showCancelButton: true,
+        inputValidator: (value) => {
+          if (!value) {
+            return 'Debes seleccionar una Zona';
+          }
+        },
+      });
+
+      if (zonaName) {
+        const selectedZona = zonas.find((zona) => zona.name === zonaName);
+
+        console.log('Zona seleccionada para actualizar:', selectedZona);
+
+        if (!selectedZona || !selectedZona.id) {
+          console.error('Zona no encontrada o sin ID');
+          return;
+        }
+
+        setSelectedZona(selectedZona);
+
+        // Lógica para enviar datos al backend y actualizar la zona
+        try {
+          const updatedZonaData = await askForUpdatedZonaData(selectedZona);
+          await updateZona(selectedZona.id, updatedZonaData);
+          handleGetAllZonas();
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Zona Actualizada',
+            text: 'La zona se ha actualizado exitosamente',
+          });
+        } catch (error) {
+          console.error('Error al actualizar la zona', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Hubo un error al actualizar la zona',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error al obtener zonas para actualizar', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Hubo un error al obtener zonas para actualizar',
+      });
+    }
+  };
+  
+  const askForUpdatedZonaData = async (selectedZona) => {
+    // Abre un modal de SweetAlert para recopilar datos actualizados
+    const { value: updatedZonaData } = await Swal.fire({
+      title: 'Actualizar Zona',
+      html: `<label for="updatedName">Nombre:</label><input id="updatedName" class="swal2-input" value="${selectedZona.name}">`,
+      focusConfirm: false,
+      preConfirm: () => {
+        return {
+          name: document.getElementById('updatedName').value,
+          geometry: selectedZona.geometry, // Incluye la geometría actualizada
+          // Puedes incluir otros campos según tus necesidades
+        };
+      }
+    }); 
+  
+    // Retorna los datos actualizados
+    return updatedZonaData || {};
+  };
+  
 
   //Delete Zona
   const handleDeleteZona = async () => {
@@ -223,34 +317,32 @@ const MapView = () => {
     }
   };
 
-  
-
   //Render
-  return (
+   return (
     <Grid container spacing={2} style={{ height: '100vh' }}>
-    <Grid item xs={12} textAlign="center" justifyContent="center" display="flex">
-      <Stack spacing={2} direction="row">
-        <Button variant="contained" onClick={handleCreateZona}>
-          Crear Zona
-        </Button>
-        <Button variant="contained" onClick={handleGetAllZonas}>
-          Obtener Todas las Zonas
-        </Button>
-        <Button variant="contained" onClick={handleGetZonaById}>
-          Obtener Zona por ID
-        </Button>
-        <Button variant="contained">
-          Actualizar Zona
-        </Button>
-        <Button variant="contained" onClick={handleDeleteZona}>
-          Eliminar Zona
-        </Button>
-      </Stack>
+      <Grid item xs={12} textAlign="center" justifyContent="center" display="flex">
+        <Stack spacing={2} direction="row">
+          <Button variant="contained" onClick={handleCreateZona}>
+            Crear Zona
+          </Button>
+          <Button variant="contained" onClick={handleGetAllZonas}>
+            Obtener Todas las Zonas
+          </Button>
+          <Button variant="contained" onClick={handleGetZonaById}>
+            Obtener Zona por ID
+          </Button>
+          <Button variant="contained" onClick={handleUpdateZona}>
+            Actualizar Zona
+          </Button>
+          <Button variant="contained" onClick={handleDeleteZona}>
+            Eliminar Zona
+          </Button>
+        </Stack>
+      </Grid>
+      <Grid item xs={12}>
+        <div id="map" style={{ height: '100vh', width: '100%' }} />
+      </Grid>
     </Grid>
-    <Grid item xs={12}>
-      <div id="map" style={{ height: '100vh', width: '100%' }} />
-    </Grid>
-  </Grid>
   );
 };
 
