@@ -23,6 +23,9 @@ const MapView = () => {
   const [geoJsonArray, setGeoJsonArray] = useState([]);
   const [map, setMap] = useState(null);
   const [selectedZona, setSelectedZona] = useState(null);
+  const [editableLayer, setEditableLayer] = useState(null);
+  const [editableLayers, setEditableLayers] = useState(null); // Agrega esta línea
+  const [isEditing, setIsEditing] = useState(false);
 
   //Mapa
   useEffect(() => {
@@ -31,6 +34,10 @@ const MapView = () => {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: false,
     }).addTo(newMap);
+
+    const editableLayerGroup = L.layerGroup(); // Agrega esta línea
+    setEditableLayers(editableLayerGroup); // Agrega esta línea
+    newMap.addLayer(editableLayerGroup); // Agrega esta línea
 
     newMap.pm.addControls({
       position: 'topleft',
@@ -42,6 +49,8 @@ const MapView = () => {
     
       setGeoJsonArray((prevArray) => [...prevArray, geoJSON]);
       layer.addTo(newMap); // Agrega la geometría al mapa
+
+      console.log('Geometría creada:', geoJSON);
     });
 
     setMap(newMap);
@@ -191,7 +200,11 @@ const MapView = () => {
   const handleUpdateZona = async () => {
     try {
       const zonas = await getAllZonas();
-
+  
+      if (editableLayers) {
+        editableLayers.clearLayers();
+      }
+  
       const { value: zonaName } = await Swal.fire({
         title: 'Seleccione una Zona para actualizar',
         input: 'select',
@@ -209,38 +222,60 @@ const MapView = () => {
           }
         },
       });
-
+  
       if (zonaName) {
         const selectedZona = zonas.find((zona) => zona.name === zonaName);
-
+  
         console.log('Zona seleccionada para actualizar:', selectedZona);
-
+  
         if (!selectedZona || !selectedZona.id) {
           console.error('Zona no encontrada o sin ID');
           return;
         }
-
-        setSelectedZona(selectedZona);
-
-        // Lógica para enviar datos al backend y actualizar la zona
-        try {
-          const updatedZonaData = await askForUpdatedZonaData(selectedZona);
-          await updateZona(selectedZona.id, updatedZonaData);
-          handleGetAllZonas();
-          
-          Swal.fire({
-            icon: 'success',
-            title: 'Zona Actualizada',
-            text: 'La zona se ha actualizado exitosamente',
-          });
-        } catch (error) {
-          console.error('Error al actualizar la zona', error);
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Hubo un error al actualizar la zona',
-          });
-        }
+  
+        editableLayers.clearLayers();
+        const editLayer = L.geoJSON(selectedZona.geometry);
+        editLayer.addTo(editableLayers);
+        editLayer.pm.enable();
+  
+        editLayer.on('pm:edit', (e) => {
+          // Actualizar la geometría en tu estado local
+          const updatedGeometry = e.target.toGeoJSON();
+          setSelectedZona((prevSelectedZona) => ({
+            ...prevSelectedZona,
+            geometry: updatedGeometry,
+          }));
+        });
+  
+        const updatedZona = { ...selectedZona };
+  
+        setSelectedZona(async (prevSelectedZona) => {
+          try {
+            // Obtén solo la geometría actualizada, sin cambiar el nombre
+            const updatedZonaData = await askForUpdatedZonaData(updatedZona);
+            await updateZona(updatedZona.id, updatedZonaData);
+  
+            Swal.fire({
+              icon: 'success',
+              title: 'Zona Actualizada',
+              text: 'La zona se ha actualizado exitosamente',
+              position: 'top-end', // Ajusta la posición del mensaje
+              toast: true, // Establece el modo de mensaje de tostada
+              showConfirmButton: false, // Oculta el botón de confirmación
+              timer: 3000, // Tiempo de duración del mensaje en milisegundos
+            });
+          } catch (error) {
+            console.error('Error al actualizar la zona', error);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'Hubo un error al actualizar la zona',
+            });
+          }
+  
+          // Devolver la zona actualizada para actualizar el estado
+          return updatedZona;
+        });
       }
     } catch (error) {
       console.error('Error al obtener zonas para actualizar', error);
@@ -252,25 +287,41 @@ const MapView = () => {
     }
   };
   
+  
   const askForUpdatedZonaData = async (selectedZona) => {
     // Abre un modal de SweetAlert para recopilar datos actualizados
     const { value: updatedZonaData } = await Swal.fire({
       title: 'Actualizar Zona',
-      html: `<label for="updatedName">Nombre:</label><input id="updatedName" class="swal2-input" value="${selectedZona.name}">`,
+      html: `
+        <label for="updatedName">Nombre:</label>
+        <input id="updatedName" class="swal2-input" value="${selectedZona.name}">
+        <label for="geoJsonInput">GeoJSON:</label>
+        <textarea id="geoJsonInput" class="swal2-textarea">${JSON.stringify(selectedZona.geometry, null, 2)}</textarea>
+      `,
       focusConfirm: false,
       preConfirm: () => {
+        const name = document.getElementById('updatedName').value;
+        const geoJsonInput = document.getElementById('geoJsonInput').value;
+  
+        let features;
+        try {
+          features = JSON.parse(geoJsonInput).features;
+        } catch (error) {
+          Swal.showValidationMessage(`Error en el formato GeoJSON: ${error.message}`);
+        }
+  
         return {
-          name: document.getElementById('updatedName').value,
-          geometry: selectedZona.geometry, // Incluye la geometría actualizada
+          name,
+          features: features || [],
           // Puedes incluir otros campos según tus necesidades
         };
-      }
+      },
     }); 
+    
   
     // Retorna los datos actualizados
     return updatedZonaData || {};
   };
-  
 
   //Delete Zona
   const handleDeleteZona = async () => {

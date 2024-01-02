@@ -27,18 +27,27 @@ export const createZona = async (zonaData) => {
     const response = await axios.post(`${BASE_URL}/zona`, zonaData);
     return response.data;
   } catch (error) {
-    console.error('Error creating zona', error.response.data); // Imprime detalles del error
-    throw error;
+    console.error('Error updating zona:', error);
+  
+    if (error.response) {
+      console.error('Server response:', error.response.data);
+    }
+  
+    throw new Error('Error updating zona', error.response.data);
   }
 };
 
 
 export const updateZona = async (id, zonaData) => {
   try {
-    const response = await axios.put(`${BASE_URL}/zona/${id}`, zonaData);
+    const response = await axios.put(`${BASE_URL}/zona/${id}`, zonaData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     return response.data;
   } catch (error) {
-    console.error('Error updating zona:', error); // Agrega esta línea
+    console.error('Error updating zona:', error);
     throw new Error('Error updating zona', error.response.data);
   }
 };
