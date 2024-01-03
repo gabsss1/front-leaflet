@@ -288,40 +288,77 @@ const MapView = () => {
   };
   
   
-  const askForUpdatedZonaData = async (selectedZona) => {
-    // Abre un modal de SweetAlert para recopilar datos actualizados
-    const { value: updatedZonaData } = await Swal.fire({
-      title: 'Actualizar Zona',
-      html: `
-        <label for="updatedName">Nombre:</label>
-        <input id="updatedName" class="swal2-input" value="${selectedZona.name}">
-        <label for="geoJsonInput">GeoJSON:</label>
-        <textarea id="geoJsonInput" class="swal2-textarea">${JSON.stringify(selectedZona.geometry, null, 2)}</textarea>
-      `,
-      focusConfirm: false,
-      preConfirm: () => {
-        const name = document.getElementById('updatedName').value;
-        const geoJsonInput = document.getElementById('geoJsonInput').value;
+  const transformGeometryToFeatureCollection = (geometry) => {
+    if (!geometry || !geometry.type || !geometry.geometries) {
+      return null;
+    }
   
-        let features;
-        try {
-          features = JSON.parse(geoJsonInput).features;
-        } catch (error) {
-          Swal.showValidationMessage(`Error en el formato GeoJSON: ${error.message}`);
-        }
-  
-        return {
-          name,
-          features: features || [],
-          // Puedes incluir otros campos según tus necesidades
-        };
-      },
-    }); 
-    
-  
-    // Retorna los datos actualizados
-    return updatedZonaData || {};
+    return {
+      type: 'FeatureCollection',
+      features: geometry.geometries.map((geometryItem) => ({
+        type: 'Feature',
+        geometry: geometryItem,
+        properties: {},
+      })),
+    };
   };
+  
+  const askForUpdatedZonaData = async (selectedZona) => {
+  // Abre un modal de SweetAlert para recopilar datos actualizados
+  const { value: updatedZonaData } = await Swal.fire({
+    title: 'Actualizar Zona',
+    html: `
+      <label for="updatedName">Nombre:</label>
+      <input id="updatedName" class="swal2-input" value="${selectedZona.name}">
+      <label for="geoJsonInput">GeoJSON:</label>
+      <textarea id="geoJsonInput" class="swal2-textarea">${JSON.stringify(
+        transformGeometryToFeatureCollection(selectedZona.geometry),
+        null,
+        2
+      )}</textarea>
+    `,
+    focusConfirm: false,
+    preConfirm: () => {
+      const name = document.getElementById('updatedName').value;
+      const geoJsonInput = document.getElementById('geoJsonInput').value;
+
+      let features;
+      try {
+        const parsedGeoJSON = JSON.parse(geoJsonInput);
+        features = parsedGeoJSON.features;
+      } catch (error) {
+        Swal.showValidationMessage(`Error en el formato GeoJSON: ${error.message}`);
+        return false; // Devuelve false para evitar que se cierre el modal en caso de error
+      }
+
+      const updatedZonaData = {
+        name,
+        geometry: {
+          type: 'FeatureCollection',
+          features: features.map((geometry) => ({
+            type: 'Feature',
+            geometry,
+            properties: {},
+          })),
+        },
+        // Puedes incluir otros campos según tus necesidades
+      };
+
+      console.log('Datos actualizados:', updatedZonaData);
+
+      return updatedZonaData;
+    },
+  });
+
+  // Si el usuario hizo clic en Cancelar o hubo un error, devuelve null
+  if (!updatedZonaData) {
+    return null;
+  }
+
+  // Retorna los datos actualizados
+  return updatedZonaData;
+};
+
 
   //Delete Zona
   const handleDeleteZona = async () => {
