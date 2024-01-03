@@ -23,9 +23,9 @@ const MapView = () => {
   const [geoJsonArray, setGeoJsonArray] = useState([]);
   const [map, setMap] = useState(null);
   const [selectedZona, setSelectedZona] = useState(null);
-  const [editableLayer, setEditableLayer] = useState(null);
   const [editableLayers, setEditableLayers] = useState(null); // Agrega esta línea
-  const [isEditing, setIsEditing] = useState(false);
+  const [editedLayer, setEditedLayer] = useState([]);
+console.log(geoJsonArray);
 
   //Mapa
   useEffect(() => {
@@ -41,6 +41,7 @@ const MapView = () => {
 
     newMap.pm.addControls({
       position: 'topleft',
+      editMode: true,
     });
 
     newMap.on('pm:create', (e) => {
@@ -58,7 +59,23 @@ const MapView = () => {
     return () => {
       newMap.remove();
     };
-  }, []); 
+  }, []);
+
+  const handleEdit = (editLayer, testMode = false) => {
+    editLayer.on('pm:edit', (e) => {
+      try {
+        const updatedGeometry = e.layer.toGeoJSON().geometry;
+        console.log('Coordenadas editadas:', updatedGeometry.coordinates);
+        setEditedLayer(e.layer);
+
+        if (!testMode) {
+          // Lógica para guardar los cambios (si es necesario)
+        }
+      } catch (error) {
+        console.error('Error en el manejador de pm:edit', error);
+      }
+    });
+  };
 
   //Create Zona
   const handleCreateZona = async () => {
@@ -110,6 +127,8 @@ const MapView = () => {
     return name || 'Geometria sin nombre';
   };
 
+
+
   //Get All Zonas
   const handleGetAllZonas = async () => {
     try {
@@ -154,49 +173,57 @@ const MapView = () => {
 
   //Get Zona by ID
   const handleGetZonaById = async () => {
-    try {
-      const zonas = await getAllZonas();
+  try {
+    const zonas = await getAllZonas();
 
-      const { value: zonaName } = await Swal.fire({
-        title: 'Seleccione una Zona',
-        input: 'select',
-        inputOptions: {
-          ...zonas.reduce((options, zona) => {
-            options[zona.name] = zona.name;
-            return options;
-          }, {}),
-        },
-        inputPlaceholder: 'Selecciona una Zona',
-        showCancelButton: true,
-        inputValidator: (value) => {
-          if (!value) {
-            return 'Debes seleccionar una Zona';
-          }
-        },
-      });
-
-      if (zonaName) {
-        const selectedZona = zonas.find((zona) => zona.name === zonaName);
-
-        console.log('Zona seleccionada:', selectedZona);
-
-        if (!selectedZona || !selectedZona.id) {
-          console.error('Zona no encontrada o sin ID');
-          return;
+    const { value: zonaName } = await Swal.fire({
+      title: 'Seleccione una Zona',
+      input: 'select',
+      inputOptions: {
+        ...zonas.reduce((options, zona) => {
+          options[zona.name] = zona.name;
+          return options;
+        }, {}),
+      },
+      inputPlaceholder: 'Selecciona una Zona',
+      showCancelButton: true,
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Debes seleccionar una Zona';
         }
+      },
+    });
 
-        addGeometriesToMap([selectedZona]);
+    if (zonaName) {
+      const selectedZona = zonas.find((zona) => zona.name === zonaName);
+
+      console.log('Zona seleccionada:', selectedZona);
+
+      if (!selectedZona || !selectedZona.id) {
+        console.error('Zona no encontrada o sin ID');
+        return;
       }
-    } catch (error) {
-      console.error('Error al obtener la zona por ID', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: 'Hubo un error al obtener la zona por ID',
-      });
-    }
-  };
 
+      editableLayers.clearLayers();
+      const editLayer = L.geoJSON(selectedZona.geometry);
+      editLayer.addTo(editableLayers);
+      editLayer.pm.enable();
+
+      // Utilizar el manejador de edición para la capa existente en modo de prueba
+      handleEdit(editLayer, true);
+    }
+  } catch (error) {
+    console.error('Error al obtener la zona por ID', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: 'Hubo un error al obtener la zona por ID',
+    });
+  }
+};
+
+
+  //actualizar zona (manetener no cambiar)
   const handleUpdateZona = async () => {
     try {
       const zonas = await getAllZonas();
@@ -239,7 +266,6 @@ const MapView = () => {
         editLayer.pm.enable();
   
         editLayer.on('pm:edit', (e) => {
-          // Actualizar la geometría en tu estado local
           const updatedGeometry = e.target.toGeoJSON();
           setSelectedZona((prevSelectedZona) => ({
             ...prevSelectedZona,
@@ -251,7 +277,6 @@ const MapView = () => {
   
         setSelectedZona(async (prevSelectedZona) => {
           try {
-            // Obtén solo la geometría actualizada, sin cambiar el nombre
             const updatedZonaData = await askForUpdatedZonaData(updatedZona);
             await updateZona(updatedZona.id, updatedZonaData);
   
@@ -259,10 +284,10 @@ const MapView = () => {
               icon: 'success',
               title: 'Zona Actualizada',
               text: 'La zona se ha actualizado exitosamente',
-              position: 'top-end', // Ajusta la posición del mensaje
-              toast: true, // Establece el modo de mensaje de tostada
-              showConfirmButton: false, // Oculta el botón de confirmación
-              timer: 3000, // Tiempo de duración del mensaje en milisegundos
+              position: 'top-end',
+              toast: true,
+              showConfirmButton: false,
+              timer: 3000,
             });
           } catch (error) {
             console.error('Error al actualizar la zona', error);
@@ -272,9 +297,7 @@ const MapView = () => {
               text: 'Hubo un error al actualizar la zona',
             });
           }
-  
-          // Devolver la zona actualizada para actualizar el estado
-          return updatedZona;
+            return updatedZona;
         });
       }
     } catch (error) {
@@ -286,80 +309,55 @@ const MapView = () => {
       });
     }
   };
-  
-  
-  const transformGeometryToFeatureCollection = (geometry) => {
-    if (!geometry || !geometry.type || !geometry.geometries) {
+
+  //ejecutar actualizacion de zona
+  const askForUpdatedZonaData = async () => {
+    if (!editedLayer) {
+      console.error('No hay capa editada para actualizar');
       return null;
     }
   
-    return {
+    const editedGeoJSON = editedLayer.toGeoJSON();
+    const editedGeometry = editedGeoJSON.geometry;
+  
+    if (!editedGeometry) {
+      console.error('La capa editada no tiene una geometría válida');
+      return null;
+    }
+  
+    const { value: confirm } = await Swal.fire({
+      title: 'Actualizar Zona',
+      text: '¿Estás seguro de que deseas actualizar la zona?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Sí, actualizar',
+    });
+  
+    if (!confirm) {
+      return null;
+    }
+  
+    const updatedData = {
       type: 'FeatureCollection',
-      features: geometry.geometries.map((geometryItem) => ({
-        type: 'Feature',
-        geometry: geometryItem,
-        properties: {},
-      })),
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: editedGeometry.type,
+            coordinates: editedGeometry.coordinates,
+          },
+        },
+      ],
     };
+  
+    console.log('Datos enviados al back:', updatedData);
+  
+    return updatedData;
   };
   
-  const askForUpdatedZonaData = async (selectedZona) => {
-  // Abre un modal de SweetAlert para recopilar datos actualizados
-  const { value: updatedZonaData } = await Swal.fire({
-    title: 'Actualizar Zona',
-    html: `
-      <label for="updatedName">Nombre:</label>
-      <input id="updatedName" class="swal2-input" value="${selectedZona.name}">
-      <label for="geoJsonInput">GeoJSON:</label>
-      <textarea id="geoJsonInput" class="swal2-textarea">${JSON.stringify(
-        transformGeometryToFeatureCollection(selectedZona.geometry),
-        null,
-        2
-      )}</textarea>
-    `,
-    focusConfirm: false,
-    preConfirm: () => {
-      const name = document.getElementById('updatedName').value;
-      const geoJsonInput = document.getElementById('geoJsonInput').value;
-
-      let features;
-      try {
-        const parsedGeoJSON = JSON.parse(geoJsonInput);
-        features = parsedGeoJSON.features;
-      } catch (error) {
-        Swal.showValidationMessage(`Error en el formato GeoJSON: ${error.message}`);
-        return false; // Devuelve false para evitar que se cierre el modal en caso de error
-      }
-
-      const updatedZonaData = {
-        name,
-        geometry: {
-          type: 'FeatureCollection',
-          features: features.map((geometry) => ({
-            type: 'Feature',
-            geometry,
-            properties: {},
-          })),
-        },
-        // Puedes incluir otros campos según tus necesidades
-      };
-
-      console.log('Datos actualizados:', updatedZonaData);
-
-      return updatedZonaData;
-    },
-  });
-
-  // Si el usuario hizo clic en Cancelar o hubo un error, devuelve null
-  if (!updatedZonaData) {
-    return null;
-  }
-
-  // Retorna los datos actualizados
-  return updatedZonaData;
-};
-
-
   //Delete Zona
   const handleDeleteZona = async () => {
     try {
@@ -404,9 +402,8 @@ const MapView = () => {
       });
     }
   };
-
   //Render
-   return (
+  return (
     <Grid container spacing={2} style={{ height: '100vh' }}>
       <Grid item xs={12} textAlign="center" justifyContent="center" display="flex">
         <Stack spacing={2} direction="row">
