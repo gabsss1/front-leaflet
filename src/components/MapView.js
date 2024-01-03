@@ -355,7 +355,7 @@ console.log(geoJsonArray);
       ],
     };
   
-    console.log('GEOJSON AL BACK:', updatedData);
+    console.log('Datos a enviar al servidor:', updatedData);
   
     return updatedData;
   };
@@ -386,7 +386,6 @@ console.log(geoJsonArray);
       if (zonaName) {
         const selectedZona = zonas.find((zona) => zona.name === zonaName);
         await deleteZona(selectedZona.id);
-        handleGetAllZonas();
 
       Swal.fire({
         icon: 'success',
