@@ -350,10 +350,12 @@ console.log(geoJsonArray);
             coordinates: editedGeometry.coordinates,
           },
         },
+
+        ...geoJsonArray,
       ],
     };
   
-    console.log('Datos enviados al back:', updatedData);
+    console.log('GEOJSON AL BACK:', updatedData);
   
     return updatedData;
   };
