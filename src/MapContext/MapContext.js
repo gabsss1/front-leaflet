@@ -29,4 +29,10 @@ export const MapProvider = ({ children }) => {
   );
 };
 
-export const useMapContext = () => useContext(MapContext);
+export const useMapContext = () => {
+  const context = useContext(MapContext);
+  if (!context) {
+    throw new Error('useMapContext debe ser usado dentro de MapProvider');
+  }
+  return context;
+};
