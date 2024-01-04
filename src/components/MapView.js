@@ -6,6 +6,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import { createZona, getAllZonas, deleteZona, updateZona} from '../service/zonaService';
 import Swal from 'sweetalert2';
 import { Button, Grid, Stack } from '@mui/material';
+import { useMapContext } from '../MapContext/MapContext';
 
   // Marker Icon fix
   delete L.Icon.Default.prototype._getIconUrl;
@@ -19,13 +20,21 @@ import { Button, Grid, Stack } from '@mui/material';
   });
 
 
-const MapView = () => {
-  const [geoJsonArray, setGeoJsonArray] = useState([]);
-  const [map, setMap] = useState(null);
-  const [selectedZona, setSelectedZona] = useState(null);
-  const [editableLayers, setEditableLayers] = useState(null); // Agrega esta línea
-  const [editedLayer, setEditedLayer] = useState([]);
-console.log(geoJsonArray);
+const MapView = ({ }) => {
+
+  //Estados Globales
+  const {
+    geoJsonArray,
+    setGeoJsonArray,
+    map,
+    setMap,
+    selectedZona,
+    setSelectedZona,
+    editableLayers,
+    setEditableLayers,
+    editedLayer,
+    setEditedLayer,
+  } = useMapContext();
 
   //Mapa
   useEffect(() => {
@@ -35,9 +44,9 @@ console.log(geoJsonArray);
       attribution: false,
     }).addTo(newMap);
 
-    const editableLayerGroup = L.layerGroup(); // Agrega esta línea
-    setEditableLayers(editableLayerGroup); // Agrega esta línea
-    newMap.addLayer(editableLayerGroup); // Agrega esta línea
+    const editableLayerGroup = L.layerGroup();
+    setEditableLayers(editableLayerGroup);
+    newMap.addLayer(editableLayerGroup);
 
     newMap.pm.addControls({
       position: 'topleft',
@@ -277,7 +286,7 @@ console.log(geoJsonArray);
   
         setSelectedZona(async (prevSelectedZona) => {
           try {
-            const updatedZonaData = await askForUpdatedZonaData(updatedZona);
+            const updatedZonaData = await logicUpdate(updatedZona);
             await updateZona(updatedZona.id, updatedZonaData);
   
             Swal.fire({
@@ -310,8 +319,8 @@ console.log(geoJsonArray);
     }
   };
 
-  //ejecutar actualizacion de zona
-  const askForUpdatedZonaData = async () => {
+  // //ejecutar actualizacion de zona
+  const logicUpdate = async () => {
     if (!editedLayer) {
       console.error('No hay capa editada para actualizar');
       return null;
@@ -403,6 +412,7 @@ console.log(geoJsonArray);
       });
     }
   };
+
   //Render
   return (
     <Grid container spacing={2} style={{ height: '100vh' }}>
