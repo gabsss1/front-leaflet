@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { createZona, getAllZonas, deleteZona, updateZona} from '../service/zonaService';
-import Swal from 'sweetalert2';
-import { Button, Grid, Stack } from '@mui/material';
+import { Grid, Stack } from '@mui/material';
 import { useMapContext } from '../MapContext/MapContext';
 import PostZona from './Gestionar Zona/post/postZona';
 import DeleteZona from './Gestionar Zona/delete/deleteZona';
@@ -24,20 +22,13 @@ import PutZona from './Gestionar Zona/put/putZona';
       'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/images/marker-shadow.png',
   });
 
-const MapView = ({ }) => {
+const MapView = () => {
 
   //Estados Globales
   const {
-    geoJsonArray,
     setGeoJsonArray,
-    map,
     setMap,
-    selectedZona,
-    setSelectedZona,
-    editableLayers,
     setEditableLayers,
-    editedLayer,
-    setEditedLayer,
   } = useMapContext();
 
   //Mapa

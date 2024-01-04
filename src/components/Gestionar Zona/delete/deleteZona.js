@@ -2,7 +2,6 @@ import React from 'react';
 import Swal from 'sweetalert2';
 import { deleteZona } from '../../../service/zonaService';
 import { Button } from '@mui/material';
-import { useMapContext } from '../../../MapContext/MapContext';
 import { getAllZonas } from '../../../service/zonaService';
 
 const DeleteZona = () => {

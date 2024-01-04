@@ -1,7 +1,6 @@
 import React from 'react';
 import L from 'leaflet';
 import Swal from 'sweetalert2';
-import { createZona } from '../../../service/zonaService';
 import { Button } from '@mui/material';
 import { useMapContext } from '../../../MapContext/MapContext';
 import { getAllZonas } from '../../../service/zonaService';
@@ -9,15 +8,7 @@ import { getAllZonas } from '../../../service/zonaService';
 const GetZonaById = () => {
 
     const {
-        geoJsonArray,
-        setGeoJsonArray,
-        map,
-        setMap,
-        selectedZona,
-        setSelectedZona,
         editableLayers,
-        setEditableLayers,
-        editedLayer,
         setEditedLayer,
       } = useMapContext();
 

@@ -10,15 +10,9 @@ const PutZona = () => {
 
     const {
         geoJsonArray,
-        setGeoJsonArray,
-        map,
-        setMap,
-        selectedZona,
         setSelectedZona,
         editableLayers,
-        setEditableLayers,
         editedLayer,
-        setEditedLayer,
       } = useMapContext();
 
   //actualizar zona (manetener no cambiar)
