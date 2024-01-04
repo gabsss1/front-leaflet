@@ -1,5 +1,3 @@
-// zonaService.js
-
 import axios from 'axios';
 
 const BASE_URL = 'http://192.168.18.128:3000'; // Reemplaza con la URL de tu backend
